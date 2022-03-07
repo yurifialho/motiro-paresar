@@ -1,0 +1,7 @@
+version: "3.8"
+services: 
+  planneragent:
+    build:
+      context: .
+    image: motiro-planneragent:1
+    container_name: motiro-planneragent
