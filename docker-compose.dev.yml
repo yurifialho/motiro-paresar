@@ -6,3 +6,5 @@ services:
       service: planneragent
     volumes:
       - .:/usr/src/app:cached
+    ports:
+      - 10002:10002
