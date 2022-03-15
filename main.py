@@ -58,7 +58,7 @@ async def get_controller(request):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     # prosodyctl register planneragent prosody-server planneragent
-    planneragent = PlannerAgent("planneragent@xmpp-server", "planneragent")
+    planneragent = PlannerAgent("motiro-paresar@xmpp-server", "motiro-paresar")
     planneragent.web.add_get('/info', get_controller, 'hello.html')
     future = planneragent.start(auto_register=True)
     #planneragent.web.start(hostname='planneragent', port="10002")

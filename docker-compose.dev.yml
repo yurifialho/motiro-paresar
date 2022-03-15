@@ -1,9 +1,9 @@
 version: "3.8"
 services: 
-  planneragent:
+  motiro-paresar:
     extends:
       file: ./docker-compose.yml
-      service: planneragent
+      service: motiro-paresar
     volumes:
       - .:/usr/src/app:cached
     ports:
