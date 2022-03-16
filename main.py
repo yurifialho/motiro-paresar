@@ -1,78 +1,65 @@
 import time
-import asyncio
-import sys
-import logging
-from spade.agent import Agent
-from spade.behaviour import CyclicBehaviour, OneShotBehaviour
-from spade.message import Message
-
-class PlannerAgent(Agent):
-    class MyBehav(CyclicBehaviour):
-        async def on_start(self):
-            logging.info("Starting behaviour...")
-            self.counter = 0
-
-        async def run(self):
-            logging.info("Counter: {}".format(self.counter))
-            self.counter += 1
-            logging.info("InformBehav running...")
-            msg = Message(to="ruleragent@xmpp-server")
-            msg.set_metadata("performative","inform")
-            msg.set_metadata("ontology", "myOntology")
-            msg.set_metadata("language","OWL-S")
-            msg.body = "Planner Hello"
-
-            await self.send(msg)
-            logging.info("Message sent")
-
-            self.exit_code = "Msg sent finalized"
-            await asyncio.sleep(5)
-    
-    class InformBehav(OneShotBehaviour):
-        async def run(self):
-            logging.info("InformBehav running...")
-            msg = Message(to="ruleragent@xmpp-server")
-            msg.set_metadata("performative","inform")
-            msg.set_metadata("ontology", "myOntology")
-            msg.set_metadata("language","OWL-S")
-            msg.body = "Planner Hello"
-
-            await self.send(msg)
-            logging.info("Message sent")
-
-            self.exit_code = "Msg sent finalized"
-
-            await self.agent.stop()
-
-
-    async def setup(self):
-        logging.info("Agent starting . . .")
-        #self.b = self.MyBehav()
-        #self.a = self.InformBehav()
-        #self.add_behaviour(self.b)
-        #self.add_behaviour(self.a)
-
-async def get_controller(request):
-    return {"number": 42}
+from aioxmpp.errors import MultiOSError
+from app.util.extras import LogoUtil
+from app.agent.paresaragent import ParesarAgent
+from app.config.config import Config
+from app.util.logger import Logger
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    # prosodyctl register planneragent prosody-server planneragent
-    planneragent = PlannerAgent("motiro-paresar@xmpp-server", "motiro-paresar")
-    planneragent.web.add_get('/info', get_controller, 'hello.html')
-    future = planneragent.start(auto_register=True)
-    #planneragent.web.start(hostname='planneragent', port="10002")
-    # Template Engine: http://jinja.pocoo.org/docs/
-    planneragent.web.start(hostname='planneragent', port="10002", templates_path="web/templates")
-    future.result()
-
-    logging.info("Wait until user interrupts with ctrl+C")
-    while planneragent.is_alive():
+    Logger.setup(__name__)
+    LogoUtil.info()
+    retry = True
+    retry_time = 2
+    retry_count = 1
+    while(retry):
         try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            logging.info("Stopping...")
-            planneragent.stop()
-            break
-    logging.info("Agent finished with exit code: {}".format(planneragent.a.exit_code))
+            
+            Logger.info("Initializing Paresar Agent.....")
+            jid = Config.getXMPPUser()
+            Logger.info(f"Connecting with user: {jid}")
+            paresarAgent = ParesarAgent(jid, Config.getXMPPPass())
+            #paresarAgent.jid = jid
+            future = paresarAgent.start(auto_register=True)
+            Logger.info("Paresar Agent Started.")
+            
+            if Config.isWebEnabled():
+                Logger.info("Initializing Web Interface from Paresar Agent.....")
+                host = Config.getHostWebName()
+                port = Config.getHostWebPort()
+                paresarAgent.web.start(hostname=host,port=port, templates_path="app/web/templates")
+                Logger.info("Web Interface Stated.")
+                Logger.info(f"Access: http://{host}:{port}/spade to monitoring.")
+            
+            future.result()
+            retry = False
+            Logger.info("Wait until user interrupts with ctrl+C")
+            while paresarAgent.is_alive():
+                try:
+                    while True:
+                        time.sleep(1)
+                except KeyboardInterrupt:
+                    Logger.info("Stopping...")
+                    paresarAgent.stop()
+                    break
+                finally:
+                    quit_spade()
+
+        except MultiOSError as err:
+            Logger.error(err)
+            if retry_count < 3:
+                retry_time *= 2
+                Logger.info(f"Retry to connect [{retry_count}]. Waiting {retry_time} seconds!")
+                time.sleep(retry_time)
+                Logger.info(f"Retry to connect [{retry_count}")
+                retry_count += 1
+            else:
+                retry = False
+                try:
+                    Logger.info("Stopping all services...")
+                    paresarAgent.kill()
+                except:
+                    pass
+                Logger.error("Cannot connect at XMPP Server. Check your connection!")
+
+
+    
