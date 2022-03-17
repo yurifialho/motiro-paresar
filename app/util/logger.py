@@ -9,7 +9,7 @@ class Logger:
         if level == logging.DEBUG:
             cls.__logger = logging.getLogger(name)    
         else:
-            cls.__logger = logging.getLogger('TUIXAUA')
+            cls.__logger = logging.getLogger('PARESAR')
     
     @classmethod
     def info(cls, msg : str) -> None:

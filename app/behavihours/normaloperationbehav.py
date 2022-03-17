@@ -1,6 +1,4 @@
-from curses.ascii import FS
 import time
-from tkinter.messagebox import RETRY
 from spade.behaviour import FSMBehaviour, State
 from app.util.logger import Logger
 from app.config.config import Config
@@ -19,43 +17,8 @@ class NormalOperationBehav(FSMBehaviour):
     async def on_end(self) -> None:
         Logger.info('Tear Down Normal Operation Behaviour')
         return await super().on_end()
-    
-    def preparePresence(self):
-        self.presence.on_avaliable = self.on_avaliable
-        self.presence.on_unavailable = self.on_unavailable
-        self.presence.on_subscribed = self.on_subscribed
-        self.presence.set_available()
-        self.presence.approve_all = True
 
-    def on_avaliable(self, jid : str, stanza) -> None:
-        avaliables = self.get(Config.KN_TUIXAUA_ONLINE)
-        if avaliables is None:
-            avaliables = [jid]
-        elif not jid in avaliables:
-            avaliables.append(jid)
-        Logger.info(f"Tuixaua [{jid}] - online")
-        Logger.info(f"Has {len(avaliables)} Tuixaua online.")
-
-    def on_unavailable(self, jid : str, stanza) -> None:
-        avaliables = self.get(Config.KN_TUIXAUA_ONLINE)
-        if not avaliables is None:
-            Logger.info(f"Tuixaua [{jid}] - disconnected")
-            avaliables.remove(jid)
-            tuixauxaSeted = self.get(Config.KN_TUIXAUA_SETED)
-            if jid == tuixauxaSeted and len(avaliables) > 0:
-                self.set(Config.KN_TUIXAUA_SETED, avaliables[0])
-            elif jid == tuixauxaSeted and len(avaliables) <= 0:
-                self.set(Config.KN_TUIXAUA_SETED, None)
-            Logger.info(f"Has {len(avaliables)} Tuixaua online.")
-
-    def on_subscribed(self, jid : str) -> None:
-        tuixauxaSeted = self.get(Config.KN_TUIXAUA_SETED)
-        if tuixauxaSeted is None:
-            Logger.info(f"Setting default tuixaua: {jid}")
-            self.set(Config.KN_TUIXAUA_SETED, jid)
-        Logger.info(f"Contact List: {self.presence.get_contacts()}")
-
-    def setupTransitions(self) -> None:
+    def setup_transitions(self) -> None:
         self.add_state(name=self.CHECK_CONNECTION, 
                        state=self.CheckConnectionState(), 
                        initial=True)
@@ -70,17 +33,6 @@ class NormalOperationBehav(FSMBehaviour):
     class CheckConnectionState(State):
 
         async def run(self) -> None:
-            self.agent.normaloperationbehav.preparePresence()
-            withoutConn = True
-            while(withoutConn):
-                Logger.info('Checking connection with any Tuixaua Agent')
-                self.agent.retainCorrectContacts()
-                tuixauaSetted = self.agent.get(Config.KN_TUIXAUA_SETED)
-                if tuixauaSetted is None or tuixauaSetted == "":
-                    Logger.error("No Tuixaua agent is available!")
-                    time.sleep(5)
-                else:
-                    break
             self.set_next_state(NormalOperationBehav.REGISTER)
 
     class RegisterState(State):
